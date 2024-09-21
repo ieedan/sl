@@ -3,6 +3,8 @@ package database
 import (
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 	"util"
@@ -12,12 +14,14 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-// Location to open the database from
-const Location string = "./database.db"
+// Path to open the database from
+const DatabaseLocation string = "database.db"
+
+const MigrationsLocation string = "migration.sql"
 
 type Game struct {
-	Id        int64  `db:"Id"`
-	Name      string `db:"Name"`
+	Id        int64     `db:"Id"`
+	Name      string    `db:"Name"`
 	CreatedAt time.Time `db:"CreatedAt"`
 	Trainers  *[]Trainer
 	Routes    *[]Route
@@ -121,7 +125,7 @@ func (g *Game) IsDead() bool {
 	for _, route := range *g.Routes {
 		if route.PokemonAreAlive {
 			return false
-		}	
+		}
 	}
 
 	return true
@@ -149,11 +153,56 @@ type Pokemon struct {
 	Route     *Route
 }
 
+// Returns a database connection. If the database has not been created it will create it and run migrations
 func Connect() *sqlx.DB {
-	db, err := sqlx.Connect("sqlite3", Location)
+	execPath, err := os.Executable()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	execPath = filepath.Dir(execPath)
+
+	migrationsPath := filepath.Join(execPath, MigrationsLocation)
+
+	dev := false
+	// the principle of this is that the migrations file won't exist in the
+	// Go temp directory so we use it to determine our environment
+	if _, err := os.Stat(migrationsPath); os.IsNotExist(err) {
+		dev = true
+	}
+
+	// when dev just make the path the place where it was called from
+	if dev {
+		execPath = "./"
+		migrationsPath = filepath.Join(execPath, MigrationsLocation)
+	}
+
+	databasePath := filepath.Join(execPath, DatabaseLocation)
+
+	migrate := false
+	if _, err := os.Stat(databasePath); os.IsNotExist(err) {
+		migrate = true
+	}
+
+	db, err := sqlx.Connect("sqlite3", databasePath)
 
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	// if migrations are necessary automatically run them
+	if migrate {
+		bytes, err := os.ReadFile(migrationsPath)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		qry := string(bytes)
+
+		_, err = db.Exec(qry)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	return db
