@@ -23,7 +23,7 @@ func (l *ListCmd) Run() error {
 	}
 	defer rows.Close()
 
-	games := make(map[int32]database.Game)
+	games := make(map[int64]database.Game)
 
 	for rows.Next() {
 		var game database.Game
@@ -43,7 +43,7 @@ func (l *ListCmd) Run() error {
 		log.Fatal(err)
 	}
 
-	slice := util.MapToSlice(&games, func(k int32, v database.Game) database.Game {
+	slice := util.MapToSlice(&games, func(k int64, v database.Game) database.Game {
 		return v
 	})
 
@@ -64,9 +64,9 @@ func (l *ListCmd) Run() error {
 	dateMin := util.MinLength(&mappedDates)
 
 	for _, game := range games {
-		id := util.PadLeftMin(strconv.Itoa(int(game.Id)), int32(idMin))
-		name := util.PadRightMin(game.Name, int32(nameMin))
-		createdAt := util.PadRightMin(game.CreatedAt, int32(dateMin))
+		id := util.PadLeftMin(strconv.Itoa(int(game.Id)), idMin)
+		name := util.PadRightMin(game.Name, nameMin)
+		createdAt := util.PadRightMin(game.CreatedAt, dateMin)
 
 		fmt.Printf("%v | %v | %v\n", id, name, createdAt)
 	}

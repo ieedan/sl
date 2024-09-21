@@ -1,11 +1,11 @@
 package commands
 
 import (
-	"fmt"
+	"game"
 )
 
 func (n *ResumeCmd) Run() error {
-	fmt.Println("resume", n.Name)
+	game.Play(n.Name)
 
 	return nil
 }

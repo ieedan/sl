@@ -1,12 +1,13 @@
 package util
 
 import (
+	"io"
 	"log"
 	"strings"
 )
 
-func PadLeftMin(s string, min int32) string {
-	remaining := min - int32(len(s))
+func PadLeftMin(s string, min int) string {
+	remaining := min - len(s)
 
 	if remaining == 0 {
 		return s
@@ -16,11 +17,11 @@ func PadLeftMin(s string, min int32) string {
 		log.Fatal("The minimum must always be greater than or equal to the length of the string!")
 	}
 
-	return strings.Repeat(" ", int(remaining)) + s
+	return strings.Repeat(" ", remaining) + s
 }
 
-func PadRightMin(s string, min int32) string {
-	remaining := min - int32(len(s))
+func PadRightMin(s string, min int) string {
+	remaining := min - len(s)
 
 	if remaining == 0 {
 		return s
@@ -30,7 +31,7 @@ func PadRightMin(s string, min int32) string {
 		log.Fatalf("The minimum must always be greater than or equal to the length of the string! %v was less than %v", min, len(s))
 	}
 
-	return s + strings.Repeat(" ", int(remaining))
+	return s + strings.Repeat(" ", remaining)
 }
 
 func MinLength(strings *[]string) int {
@@ -47,7 +48,7 @@ func MinLength(strings *[]string) int {
 
 func Map[T any, V any](items *[]T, fn func(T, int) V) []V {
 	var mapped []V
-	
+
 	for i, item := range *items {
 		mapped = append(mapped, fn(item, i))
 	}
@@ -63,4 +64,20 @@ func MapToSlice[K comparable, V any, T any](m *map[K]V, fn func(K, V) T) []T {
 	}
 
 	return slice
+}
+
+func LPad(str string, padding int) string {
+	return strings.Repeat(" ", padding) + str
+}
+
+func IsCancel(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	if err == io.EOF {
+		return true
+	}
+
+	return false
 }
