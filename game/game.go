@@ -9,6 +9,7 @@ import (
 	"util"
 
 	"database"
+	tm "github.com/buger/goterm"
 )
 
 func Play(name string) {
@@ -18,6 +19,10 @@ func Play(name string) {
 	reader := bufio.NewReader(os.Stdin)
 
 	for {
+		tm.Flush()
+		tm.Clear()
+		tm.MoveCursor(1, 1)
+
 		game, exists := database.GetGame(db, name)
 
 		if !exists {
