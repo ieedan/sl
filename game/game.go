@@ -132,6 +132,7 @@ func end(game *database.Game) {
 
 func delete(game *database.Game) {
 	db := database.Connect()
+	defer db.Close()
 
 	_, err := db.Exec("DELETE FROM Games WHERE Id = ?", game.Id)
 	if err != nil {
@@ -173,6 +174,7 @@ func kill(game *database.Game, nameOfRoute *string) {
 
 func killRoutes(routeIds ...int64) {
 	db := database.Connect()
+	defer db.Close()
 
 	query, args, err := sqlx.In("UPDATE Routes SET PokemonAreAlive = 0 WHERE Id IN (?)", routeIds)
 	if err != nil {
@@ -236,6 +238,7 @@ func catch(game *database.Game) {
 	}
 
 	db := database.Connect()
+	defer db.Close()
 
 	result, err := db.Exec(
 		"INSERT INTO Routes (GameId, Name) VALUES (?, ?)",

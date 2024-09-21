@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 	"util"
 
 	"github.com/fatih/color"
@@ -17,7 +18,7 @@ const Location string = "./database.db"
 type Game struct {
 	Id        int64  `db:"Id"`
 	Name      string `db:"Name"`
-	CreatedAt string `db:"CreatedAt"`
+	CreatedAt time.Time `db:"CreatedAt"`
 	Trainers  *[]Trainer
 	Routes    *[]Route
 }
