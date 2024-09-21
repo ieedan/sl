@@ -9,7 +9,9 @@ import (
 	"util"
 
 	"database"
+
 	tm "github.com/buger/goterm"
+	"github.com/jmoiron/sqlx"
 )
 
 func Play(name string) {
@@ -33,7 +35,7 @@ func Play(name string) {
 		fmt.Println(game.String())
 
 		if !game.IsDead() {
-			fmt.Println("Waiting for command (catch, kill, quit)...")
+			fmt.Println("Waiting for command (catch, kill, end, quit)...")
 
 			command, err := reader.ReadString('\n')
 
@@ -42,19 +44,29 @@ func Play(name string) {
 				os.Exit(0)
 			}
 
-			command = strings.ToLower(strings.TrimSpace(command))
+			command = strings.TrimSpace(command)
 
 			if command == "quit" {
 				break
 			}
 
-			switch command {
+			commands := strings.Split(command, " ")
+
+			switch strings.ToLower(commands[0]) {
 			case "kill":
-				kill(game)
+				var routeName string
+
+				if len(commands) > 1 {
+					routeName = commands[1]
+				}
+
+				kill(game, &routeName)
 			case "catch":
 				catch(game)
+			case "end":
+				end(game)
 			default:
-				fmt.Println("Invalid command! Please enter a valid command (catch, kill, quit)")
+				fmt.Println("Invalid command! Please enter a valid command (catch, kill, end, quit)")
 			}
 		} else {
 			fmt.Println("Game over... Type `delete` to remove this game.")
@@ -76,6 +88,14 @@ func Play(name string) {
 	}
 }
 
+func end(game *database.Game) {
+	ids := util.Map(game.Routes, func(route database.Route, i int) int64 {
+		return route.Id
+	})
+
+	killRoutes(ids...)
+}
+
 func delete(game *database.Game) {
 	db := database.Connect()
 
@@ -87,30 +107,47 @@ func delete(game *database.Game) {
 	fmt.Printf("Deleted '%v'!\n", game.Name)
 }
 
-func kill(game *database.Game) {
-	reader := bufio.NewReader(os.Stdin)
+func kill(game *database.Game, nameOfRoute *string) {
+	route := nameOfRoute
 
-	fmt.Println("Please enter a route to kill:")
+	if route == nil {
+		reader := bufio.NewReader(os.Stdin)
 
-	route, err := reader.ReadString('\n')
+		fmt.Println("Please enter a route to kill:")
 
-	if util.IsCancel(err) {
-		fmt.Println("Canceled.")
-		os.Exit(0)
+		r, err := reader.ReadString('\n')
+
+		if util.IsCancel(err) {
+			fmt.Println("Canceled.")
+			os.Exit(0)
+		}
+
+		trimmed := strings.TrimSpace(r)
+
+		route = &trimmed
 	}
 
-	route = strings.TrimSpace(route)
-
-	id, ok := game.GetRoute(route)
+	id, ok := game.GetRoute(*route)
 
 	if !ok {
 		fmt.Printf("The route '%v' does not exist\n", route)
 		return
 	}
 
+	killRoutes(id)
+}
+
+func killRoutes(routeIds ...int64) {
 	db := database.Connect()
 
-	_, err = db.Exec("UPDATE Routes SET PokemonAreAlive = 0 WHERE Id = ?", id)
+	query, args, err := sqlx.In("UPDATE Routes SET PokemonAreAlive = 0 WHERE Id IN (?)", routeIds)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	query = db.Rebind(query)
+
+	_, err = db.Exec(query, args...)
 	if err != nil {
 		log.Fatal(err)
 	}
