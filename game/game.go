@@ -3,12 +3,12 @@ package game
 import (
 	"bufio"
 	"fmt"
+	"github.com/ieedan/sl/database"
+	"github.com/ieedan/sl/util"
 	"log"
 	"os"
 	"slices"
 	"strings"
-	"github.com/ieedan/sl/util"
-	"github.com/ieedan/sl/database"
 
 	tm "github.com/buger/goterm"
 	"github.com/jmoiron/sqlx"
@@ -37,27 +37,41 @@ func Play(name string) {
 		if !game.IsDead() {
 			fmt.Println("Waiting for command (catch, kill, end, quit, help)...")
 
-			command, err := reader.ReadString('\n')
+			input, err := reader.ReadString('\n')
 
 			if util.IsCancel(err) {
 				fmt.Println("Canceled.")
 				os.Exit(0)
 			}
 
-			command = strings.TrimSpace(command)
+			input = strings.TrimSpace(input)
+
+			if input == "" {
+				continue
+			}
+
+			endCommandIndex := strings.Index(input, " ")
+
+			var command string
+			args := ""
+
+			if endCommandIndex == -1 {
+				command = input
+			} else {
+				command = input[0:endCommandIndex]
+				args = input[endCommandIndex+1:]
+			}
 
 			if command == "quit" {
 				break
 			}
 
-			commands := strings.Split(command, " ")
-
-			switch strings.ToLower(commands[0]) {
+			switch command {
 			case "kill":
 				var routeName string
 
-				if len(commands) > 1 {
-					routeName = commands[1]
+				if args != "" {
+					routeName = args
 				}
 
 				kill(game, &routeName)
@@ -68,19 +82,18 @@ func Play(name string) {
 			case "help":
 				fmt.Println("")
 
-				if len(commands) == 1 {
+				if args == "" {
 					help := Help(&Commands)
 
 					fmt.Println(help)
 				} else {
-					cmd := commands[1]
+					cmd := args
 
-					
 					index := slices.IndexFunc(Commands, func(command Cmd) bool {
 						return command.Name == cmd
 					})
 
-					if (index != -1) {
+					if index != -1 {
 						help := Commands[index].Help()
 
 						fmt.Println(help)
@@ -142,9 +155,13 @@ func delete(game *database.Game) {
 }
 
 func kill(game *database.Game, nameOfRoute *string) {
-	route := nameOfRoute
+	var route string
 
-	if route == nil {
+	if nameOfRoute != nil && *nameOfRoute != "" {
+		route = *nameOfRoute
+	}
+
+	if route == "" {
 		reader := bufio.NewReader(os.Stdin)
 
 		fmt.Println("Please enter a route to kill:")
@@ -158,10 +175,10 @@ func kill(game *database.Game, nameOfRoute *string) {
 
 		trimmed := strings.TrimSpace(r)
 
-		route = &trimmed
+		route = trimmed
 	}
 
-	id, ok := game.GetRoute(*route)
+	id, ok := game.GetRoute(route)
 
 	if !ok {
 		fmt.Printf("The route '%v' does not exist\n", route)
