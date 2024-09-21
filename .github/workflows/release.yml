@@ -19,6 +19,13 @@ jobs:
             goos: windows
     steps:
     - uses: actions/checkout@v4
+
+    - name: Install C dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc
+
+    - name: Compile And Add Binaries To Release
     - uses: wangyoucao577/go-release-action@v1
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
