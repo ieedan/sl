@@ -28,3 +28,5 @@ jobs:
         project_path: "."
         binary_name: "sl"
         extra_files: LICENSE README.md migration.sql
+      env:
+        CGO_ENABLED: 1
