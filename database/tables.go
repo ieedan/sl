@@ -2,16 +2,16 @@ package database
 
 import (
 	"fmt"
+	"github.com/ieedan/sl/util"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
-	"github.com/ieedan/sl/util"
 
 	"github.com/fatih/color"
 	"github.com/jmoiron/sqlx"
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 // Path to open the database from
@@ -113,7 +113,7 @@ func (g *Game) GetRoute(name string) (int64, bool) {
 	var id int64
 
 	for _, p := range *firstTrainer.Pokemon {
-		if strings.ToLower(p.Route.Name) == strings.ToLower(name) {
+		if strings.EqualFold(p.Route.Name, name) {
 			id = p.Route.Id
 		}
 	}
@@ -184,7 +184,7 @@ func Connect() *sqlx.DB {
 		migrate = true
 	}
 
-	db, err := sqlx.Connect("sqlite3", databasePath)
+	db, err := sqlx.Connect("sqlite", databasePath)
 
 	if err != nil {
 		log.Fatal(err)
