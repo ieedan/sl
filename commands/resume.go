@@ -1,7 +1,7 @@
 package commands
 
 import (
-	"game"
+	"github.com/ieedan/sl/game"
 )
 
 func (n *ResumeCmd) Run() error {

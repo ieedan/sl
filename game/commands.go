@@ -2,7 +2,7 @@ package game
 
 import (
 	"fmt"
-	"util"
+	"github.com/ieedan/sl/util"
 )
 
 type Cmd struct {

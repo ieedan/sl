@@ -7,9 +7,8 @@ import (
 	"os"
 	"slices"
 	"strings"
-	"util"
-
-	"database"
+	"github.com/ieedan/sl/util"
+	"github.com/ieedan/sl/database"
 
 	tm "github.com/buger/goterm"
 	"github.com/jmoiron/sqlx"

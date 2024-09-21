@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-	"util"
+	"github.com/ieedan/sl/util"
 
 	"github.com/fatih/color"
 	"github.com/jmoiron/sqlx"

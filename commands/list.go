@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"database"
-	"util"
+	"github.com/ieedan/sl/database"
+	"github.com/ieedan/sl/util"
 )
 
 func (l *ListCmd) Run() error {

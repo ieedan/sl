@@ -2,13 +2,13 @@ package commands
 
 import (
 	"bufio"
-	"database"
 	"fmt"
-	"game"
+	"github.com/ieedan/sl/database"
+	"github.com/ieedan/sl/game"
+	"github.com/ieedan/sl/util"
 	"log"
 	"os"
 	"strings"
-	"util"
 )
 
 func (n *NewCmd) Run() error {

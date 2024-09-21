@@ -1,8 +1,8 @@
 package main
 
 import (
-	"commands"
 	"github.com/alecthomas/kong"
+	"github.com/ieedan/sl/commands"
 )
 
 var CLI struct {
