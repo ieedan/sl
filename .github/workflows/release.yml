@@ -1,39 +1,55 @@
 name: Release Go Binaries
 
 on:
-    release:
-        types: [created]
+  release:
+    types: [created]
 
 jobs:
-    releases-matrix:
-        name: Release Go Binary
-        runs-on: ubuntu-latest
-        strategy:
-            matrix:
-                goos: [linux, windows, darwin]
-                goarch: ["386", amd64, arm64]
-                exclude:
-                    - goarch: "386"
-                      goos: darwin
-                    - goarch: arm64
-                      goos: windows
-        steps:
-            - uses: actions/checkout@v4
+  releases-matrix:
+    name: Release Go Binary
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux, windows, darwin]
+        goarch: ["386", amd64, arm64]
+        exclude:
+          - goarch: "386"
+            goos: darwin
+          - goarch: arm64
+            goos: windows
+    steps:
+      - uses: actions/checkout@v4
 
-            - name: Install C dependencies
-              run: |
-                sudo apt-get update
-                sudo apt-get install -y build-essential gcc libc6-dev
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.23.1'
 
-            - name: Compile And Add Binaries To Release
-              uses: wangyoucao577/go-release-action@v1
-              with:
-                  github_token: ${{ secrets.GITHUB_TOKEN }}
-                  goos: ${{ matrix.goos }}
-                  goarch: ${{ matrix.goarch }}
-                  goversion: "https://dl.google.com/go/go1.23.1.linux-amd64.tar.gz"
-                  project_path: "."
-                  binary_name: "sl"
-                  extra_files: LICENSE README.md migration.sql
-              env:
-                  CGO_ENABLED: 1
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc gcc-multilib g++-multilib libc6-dev-i386 mingw-w64 gcc-mingw-w64 gcc-arm-linux-gnueabihf libc6-dev-armhf-cross
+          
+      - name: Compile And Add Binaries To Release
+        uses: wangyoucao577/go-release-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          goos: ${{ matrix.goos }}
+          goarch: ${{ matrix.goarch }}
+          goversion: "https://dl.google.com/go/go1.23.1.linux-amd64.tar.gz"
+          project_path: "."
+          binary_name: "sl"
+          extra_files: LICENSE README.md migration.sql
+        env:
+          CGO_ENABLED: 1
+          CC: gcc
+          CXX: g++
+          # Set cross-compilation environment variables based on target OS and architecture
+          CC_FOR_TARGET: |
+            ${{ matrix.goos == 'windows' && 'x86_64-w64-mingw32-gcc' ||
+                matrix.goos == 'linux' && matrix.goarch == 'arm64' && 'aarch64-linux-gnu-gcc' ||
+                'gcc' }}
+          CXX_FOR_TARGET: |
+            ${{ matrix.goos == 'windows' && 'x86_64-w64-mingw32-g++' ||
+                matrix.goos == 'linux' && matrix.goarch == 'arm64' && 'aarch64-linux-gnu-g++' ||
+                'g++' }}
