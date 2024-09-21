@@ -108,7 +108,7 @@ func (g *Game) GetRoute(name string) (int64, bool) {
 	var id int64
 
 	for _, p := range *firstTrainer.Pokemon {
-		if p.Route.Name == name {
+		if strings.ToLower(p.Route.Name) == strings.ToLower(name) {
 			id = p.Route.Id
 		}
 	}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"slices"
 	"strings"
 	"util"
 
@@ -35,7 +36,7 @@ func Play(name string) {
 		fmt.Println(game.String())
 
 		if !game.IsDead() {
-			fmt.Println("Waiting for command (catch, kill, end, quit)...")
+			fmt.Println("Waiting for command (catch, kill, end, quit, help)...")
 
 			command, err := reader.ReadString('\n')
 
@@ -65,8 +66,41 @@ func Play(name string) {
 				catch(game)
 			case "end":
 				end(game)
+			case "help":
+				fmt.Println("")
+
+				if len(commands) == 1 {
+					help := Help(&Commands)
+
+					fmt.Println(help)
+				} else {
+					cmd := commands[1]
+
+					
+					index := slices.IndexFunc(Commands, func(command Cmd) bool {
+						return command.Name == cmd
+					})
+
+					if (index != -1) {
+						help := Commands[index].Help()
+
+						fmt.Println(help)
+					} else {
+						fmt.Printf("'%v' is not a valid command!\n", cmd)
+					}
+				}
+
+				fmt.Println("Press `enter` to continue...")
+
+				buf := make([]byte, 1)
+				_, err := reader.Read(buf)
+
+				if util.IsCancel(err) {
+					fmt.Println("Canceled.")
+					os.Exit(0)
+				}
 			default:
-				fmt.Println("Invalid command! Please enter a valid command (catch, kill, end, quit)")
+				fmt.Println("Invalid command! Please enter a valid command (catch, kill, end, quit, help)")
 			}
 		} else {
 			fmt.Println("Game over... Type `delete` to remove this game.")
