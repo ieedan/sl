@@ -22,8 +22,8 @@ You should see the following output:
 
 ```
 
-  │ Name │ Players │ Started │
-  ├──────┼─────────┼─────────┤
+  │ Name │ Trainers │ Last Route │ Remaining Pokemon │ Started │
+  ├──────┼──────────┼────────────┼───────────────────┼─────────┤
 
 ```
 
