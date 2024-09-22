@@ -1,0 +1,59 @@
+name: Create release
+
+on:
+  push:
+    branches: main
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    permissions:
+            contents: write
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Get Latest Changes 🆕
+      run: |
+          npx changy@latest latest --today > release_notes.txt
+
+    - name: Create Release 🚀
+      uses: softprops/action-gh-release@v2
+      with:
+          tag_name: ${{ github.run_id }}
+          name: ${{ github.run_id }}
+          body_path: release_notes.txt
+          generate_release_notes: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+          draft: false
+          prerelease: false
+          make_latest: true
+
+  build-go-binaries:
+    needs: create-release
+    name: Release Go Binary
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux, windows, darwin]
+        goarch: ["386", amd64, arm64]
+        exclude:
+          - goarch: "386"
+            goos: darwin
+          - goarch: arm64
+            goos: windows
+    steps:
+      - uses: actions/checkout@v4
+      - uses: wangyoucao577/go-release-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          goos: ${{ matrix.goos }}
+          goarch: ${{ matrix.goarch }}
+          goversion: "https://dl.google.com/go/go1.23.1.linux-amd64.tar.gz"
+          project_path: "."
+          binary_name: "sl"
+          extra_files: LICENSE README.md migration.sql CHANGELOG.md
+          release_tag: ${{ github.run_id }}
