@@ -1,8 +1,6 @@
 package database
 
 import (
-	"fmt"
-	"github.com/ieedan/sl/util"
 	"log"
 	"os"
 	"path/filepath"
@@ -10,6 +8,9 @@ import (
 	"time"
 
 	"github.com/fatih/color"
+	"github.com/ieedan/sl/table"
+	"github.com/ieedan/sl/util"
+
 	"github.com/jmoiron/sqlx"
 	_ "modernc.org/sqlite"
 )
@@ -28,83 +29,50 @@ type Game struct {
 }
 
 func (g *Game) String() string {
-	routes := []string{
-		"Route",
-	}
+	t := table.New(table.DEFAULT_OPTIONS)
 
-	firstTrainer := (*g.Trainers)[0]
+	headerColumns := util.Map(g.Trainers, func(trainer Trainer, index int) string {
+		return trainer.Name
+	})
 
-	for _, pokemon := range *firstTrainer.Pokemon {
-		routes = append(routes, pokemon.Route.Name)
-	}
+	headerColumns = append([]string{"Route"}, headerColumns...)
 
-	routesMin := util.MinLength(&routes)
+	t.AddHeader(headerColumns...)
 
-	trainerMinByIndex := make(map[int]int)
+	trainerPokemonByRoute := make(map[int64][]string)
 
-	for i, trainer := range *g.Trainers {
-		pokemon := []string{
-			trainer.Name,
-		}
+	for _, trainer := range *g.Trainers {
+		for _, pokemon := range *trainer.Pokemon {
+			_, ok := trainerPokemonByRoute[pokemon.RouteId]
 
-		for _, p := range *trainer.Pokemon {
-			pokemon = append(pokemon, p.Name)
-		}
-
-		trainerMinByIndex[i] = util.MinLength(&pokemon)
-	}
-
-	var table string = "\n"
-
-	for i, route := range routes {
-		var row string = "│"
-		row += fmt.Sprintf(" %v │", util.PadRightMin(route, routesMin))
-
-		isDead := false
-
-		for trainerIndex, trainer := range *g.Trainers {
-			min := trainerMinByIndex[trainerIndex]
-			// for the heading
-			if i == 0 {
-				row += fmt.Sprintf(" %v │", util.PadRightMin(trainer.Name, min))
+			if ok {
+				trainerPokemonByRoute[pokemon.RouteId] = append(trainerPokemonByRoute[pokemon.RouteId], pokemon.Name)
 				continue
 			}
 
-			pokemon := (*trainer.Pokemon)[i-1]
-
-			isDead = !pokemon.Route.PokemonAreAlive
-
-			row += fmt.Sprintf(" %v │", util.PadRightMin(pokemon.Name, min))
-		}
-
-		if isDead {
-			row = util.StrikeThrough(color.RedString(row))
-		}
-
-		table += util.LPad(row, 2) + "\n"
-
-		if i == 0 {
-			row = "├"
-
-			row += strings.Repeat("─", routesMin+2) + "┼"
-
-			for trainerIndex := range *g.Trainers {
-				min := trainerMinByIndex[trainerIndex]
-
-				row += strings.Repeat("─", min+2)
-
-				if trainerIndex+1 < len(*g.Trainers) {
-					row += "┼"
-				} else {
-					row += "┤"
-				}
-			}
-
-			table += util.LPad(row, 2) + "\n"
+			trainerPokemonByRoute[pokemon.RouteId] = []string{pokemon.Name}
 		}
 	}
 
-	return table
+	for _, route := range *g.Routes {
+		columns := []string{
+			route.Name,
+		}
+
+		columns = append(columns, trainerPokemonByRoute[route.Id]...)
+
+		transform := func(str string) string {
+			if route.PokemonAreAlive {
+				return str
+			}
+
+			return util.StrikeThrough(color.RedString(str))
+		}
+
+		t.AddRowTransform(transform, columns...)
+	}
+
+	return t.String()
 }
 
 func (g *Game) GetRoute(name string) (int64, bool) {
@@ -293,7 +261,7 @@ func GetRoute(db *sqlx.DB, routeId int64) Route {
 
 func GetRoutes(db *sqlx.DB, gameId int64) []Route {
 	qry := `
-	SELECT Id, GameId, Name, PokemonAreAlive FROM Routes WHERE GameId = ?
+	SELECT Id, GameId, Name, PokemonAreAlive FROM Routes WHERE GameId = ? ORDER BY Id ASC
 	`
 
 	var routes []Route

@@ -4,10 +4,9 @@ import (
 	"fmt"
 	"log"
 	"strconv"
-	"strings"
 
 	"github.com/ieedan/sl/database"
-	"github.com/ieedan/sl/util"
+	"github.com/ieedan/sl/table"
 )
 
 func (l *ListCmd) Run() error {
@@ -21,55 +20,42 @@ func (l *ListCmd) Run() error {
 		log.Fatal(err)
 	}
 
-	games := make(map[int64]database.Game)
+	games := []database.Game{}
 
 	for _, name := range names {
 		// we know that ok will always be true since we just got it
 		game, _ := database.GetGame(db, name)
 
-		games[game.Id] = *game
+		games = append(games, *game)
 	}
 
-	slice := util.MapToSlice(&games, func(k int64, v database.Game) database.Game {
-		return v
-	})
+	t := table.New(table.DEFAULT_OPTIONS)
 
-	mappedNames := util.Map(&slice, func(item database.Game, i int) string {
-		return item.Name
-	})
-
-	mappedNames = append(mappedNames, "Name")
-
-	mappedDates := util.Map(&slice, func(item database.Game, i int) string {
-		return item.CreatedAt.Local().Format("01-02-2006 3:04 PM")
-	})
-
-	mappedDates = append(mappedDates, "Started")
-
-	mappedTrainers := util.Map(&slice, func(item database.Game, i int) string {
-		return strconv.Itoa(len(*item.Trainers))
-	})
-
-	mappedTrainers = append(mappedTrainers, "Players")
-
-	nameMin := util.MinLength(&mappedNames)
-	trainersMin := util.MinLength(&mappedTrainers)
-	dateMin := util.MinLength(&mappedDates)
-
-	table := "\n"
-
-	table += util.LPad(fmt.Sprintf("│ %v │ %v │ %v │\n", util.PadRightMin("Name", nameMin), util.PadRightMin("Players", trainersMin), util.PadRightMin("Started", dateMin)), 2)
-	table += util.LPad(fmt.Sprintf("├─%v─┼─%v─┼─%v─┤\n", strings.Repeat("─", nameMin), strings.Repeat("─", trainersMin), strings.Repeat("─", dateMin)), 2)
+	t.AddHeader("Name", "Trainers", "Last Route", "Remaining Pokemon", "Started")
 
 	for _, game := range games {
-		name := util.PadRightMin(game.Name, nameMin)
-		trainers := util.PadRightMin(strconv.Itoa(len(*game.Trainers)), trainersMin)
-		createdAt := util.PadRightMin(game.CreatedAt.Local().Format("1-2-2006 3:04 PM"), dateMin)
+		lastRoute := (*game.Routes)[len(*game.Routes)-1]
 
-		table += util.LPad(fmt.Sprintf("│ %v │ %v │ %v │\n", name, trainers, createdAt), 2)
+		remaining := 0
+
+		for _, route := range *game.Routes {
+			if route.PokemonAreAlive {
+				remaining += 1
+			}
+		}
+
+		columns := []string{
+			game.Name,
+			strconv.Itoa(len(*game.Trainers)),
+			lastRoute.Name,
+			fmt.Sprintf("%v", remaining),
+			game.CreatedAt.Local().Format("01-02-2006 03:04 PM"),
+		}
+
+		t.AddRow(columns...)
 	}
 
-	fmt.Println(table)
+	fmt.Println(t.String())
 
 	return nil
 }
