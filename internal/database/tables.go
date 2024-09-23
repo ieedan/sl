@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/ieedan/sl/table"
-	"github.com/ieedan/sl/util"
+	"github.com/ieedan/sl/internal/table"
+	"github.com/ieedan/sl/internal/util"
 
 	"github.com/jmoiron/sqlx"
 	_ "modernc.org/sqlite"
@@ -24,14 +24,14 @@ type Game struct {
 	Id        int64     `db:"Id"`
 	Name      string    `db:"Name"`
 	CreatedAt time.Time `db:"CreatedAt"`
-	Trainers  *[]Trainer
-	Routes    *[]Route
+	Trainers  []Trainer
+	Routes    []Route
 }
 
 func (g *Game) String() string {
 	t := table.New(table.DEFAULT_OPTIONS)
 
-	headerColumns := util.Map(g.Trainers, func(trainer Trainer, index int) string {
+	headerColumns := util.Map(&g.Trainers, func(trainer Trainer, index int) string {
 		return trainer.Name
 	})
 
@@ -41,8 +41,8 @@ func (g *Game) String() string {
 
 	trainerPokemonByRoute := make(map[int64][]string)
 
-	for _, trainer := range *g.Trainers {
-		for _, pokemon := range *trainer.Pokemon {
+	for _, trainer := range g.Trainers {
+		for _, pokemon := range trainer.Pokemon {
 			_, ok := trainerPokemonByRoute[pokemon.RouteId]
 
 			if ok {
@@ -54,7 +54,7 @@ func (g *Game) String() string {
 		}
 	}
 
-	for _, route := range *g.Routes {
+	for _, route := range g.Routes {
 		columns := []string{
 			route.Name,
 		}
@@ -76,11 +76,9 @@ func (g *Game) String() string {
 }
 
 func (g *Game) GetRoute(name string) (int64, bool) {
-	firstTrainer := (*g.Trainers)[0]
-
 	var id int64
 
-	for _, p := range *firstTrainer.Pokemon {
+	for _, p := range g.Trainers[0].Pokemon {
 		if strings.EqualFold(p.Route.Name, name) {
 			id = p.Route.Id
 		}
@@ -90,7 +88,7 @@ func (g *Game) GetRoute(name string) (int64, bool) {
 }
 
 func (g *Game) IsDead() bool {
-	for _, route := range *g.Routes {
+	for _, route := range g.Routes {
 		if route.PokemonAreAlive {
 			return false
 		}
@@ -103,7 +101,7 @@ type Trainer struct {
 	Id      int64  `db:"Id"`
 	GameId  int64  `db:"GameId"`
 	Name    string `db:"Name"`
-	Pokemon *[]Pokemon
+	Pokemon []Pokemon
 }
 
 type Route struct {
@@ -118,7 +116,7 @@ type Pokemon struct {
 	RouteId   int64  `db:"RouteId"`
 	TrainerId int64  `db:"TrainerId"`
 	Name      string `db:"Name"`
-	Route     *Route
+	Route     Route
 }
 
 // Returns a database connection. If the database has not been created it will create it and run migrations
@@ -192,13 +190,20 @@ func GetGame(db *sqlx.DB, name string) (*Game, bool) {
 		return nil, false
 	}
 
-	trainers := GetTrainers(db, game.Id)
+	trainers := make(chan []Trainer, 1)
+	routes := make(chan []Route, 1)
 
-	game.Trainers = &trainers
+	go func() { trainers <- GetTrainers(db, game.Id) }()
+	go func() { routes <- GetRoutes(db, game.Id) }()
 
-	routes := GetRoutes(db, game.Id)
-
-	game.Routes = &routes
+	for i := 0; i < 2; i++ {
+		select {
+		case t := <-trainers:
+			game.Trainers = t
+		case r := <-routes:
+			game.Routes = r
+		}
+	}
 
 	return &game, true
 }
@@ -217,7 +222,7 @@ func GetTrainers(db *sqlx.DB, gameId int64) []Trainer {
 	for i, trainer := range trainers {
 		pokemon := GetPokemon(db, trainer.Id)
 
-		trainers[i].Pokemon = &pokemon
+		trainers[i].Pokemon = pokemon
 	}
 
 	return trainers
@@ -238,7 +243,7 @@ func GetPokemon(db *sqlx.DB, trainerId int64) []Pokemon {
 	for i, p := range pokemon {
 		route := GetRoute(db, p.RouteId)
 
-		pokemon[i].Route = &route
+		pokemon[i].Route = route
 	}
 
 	return pokemon

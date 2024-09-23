@@ -5,8 +5,8 @@ import (
 	"log"
 	"strconv"
 
-	"github.com/ieedan/sl/database"
-	"github.com/ieedan/sl/table"
+	"github.com/ieedan/sl/internal/database"
+	"github.com/ieedan/sl/internal/table"
 )
 
 func (l *ListCmd) Run() error {
@@ -34,11 +34,11 @@ func (l *ListCmd) Run() error {
 	t.AddHeader("Name", "Trainers", "Last Route", "Remaining Pokemon", "Started")
 
 	for _, game := range games {
-		lastRoute := (*game.Routes)[len(*game.Routes)-1]
+		lastRoute := game.Routes[len(game.Routes)-1]
 
 		remaining := 0
 
-		for _, route := range *game.Routes {
+		for _, route := range game.Routes {
 			if route.PokemonAreAlive {
 				remaining += 1
 			}
@@ -46,7 +46,7 @@ func (l *ListCmd) Run() error {
 
 		columns := []string{
 			game.Name,
-			strconv.Itoa(len(*game.Trainers)),
+			strconv.Itoa(len(game.Trainers)),
 			lastRoute.Name,
 			fmt.Sprintf("%v", remaining),
 			game.CreatedAt.Local().Format("01-02-2006 03:04 PM"),

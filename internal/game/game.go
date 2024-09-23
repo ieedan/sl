@@ -3,12 +3,13 @@ package game
 import (
 	"bufio"
 	"fmt"
-	"github.com/ieedan/sl/database"
-	"github.com/ieedan/sl/util"
 	"log"
 	"os"
 	"slices"
 	"strings"
+
+	"github.com/ieedan/sl/internal/database"
+	"github.com/ieedan/sl/internal/util"
 
 	tm "github.com/buger/goterm"
 	"github.com/jmoiron/sqlx"
@@ -135,7 +136,7 @@ func Play(name string) {
 }
 
 func end(game *database.Game) {
-	ids := util.Map(game.Routes, func(route database.Route, i int) int64 {
+	ids := util.Map(&game.Routes, func(route database.Route, i int) int64 {
 		return route.Id
 	})
 
@@ -232,7 +233,7 @@ func catch(game *database.Game) {
 
 	pokemon := make(map[int64]string)
 
-	for i, trainer := range *game.Trainers {
+	for i, trainer := range game.Trainers {
 		fmt.Printf("Enter %v's new pokemon:\n", trainer.Name)
 
 		pokemonName, err := reader.ReadString('\n')

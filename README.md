@@ -6,7 +6,7 @@ A CLI built for managing Pokémon `Soul Link` play throughs.
 
 ## Setup and Installation
 
-Download the correct `.zip` file for your OS from the [Latest Release](https://github.com/ieedan/sl/releases/latest).
+Download the correct `.zip` file for your OS from the [Latest Release](https://github.com/ieedan/sl/internal/releases/latest).
 
 Extract the contents and place them somewhere on your computer.
 

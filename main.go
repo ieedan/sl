@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/alecthomas/kong"
-	"github.com/ieedan/sl/commands"
+	"github.com/ieedan/sl/internal/commands"
 )
 
 var CLI struct {
