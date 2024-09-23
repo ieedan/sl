@@ -5,7 +5,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/ieedan/sl/util"
+	"github.com/ieedan/sl/internal/util"
 )
 
 var DEFAULT_OPTIONS = TableOptions{

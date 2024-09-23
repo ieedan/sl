@@ -3,12 +3,13 @@ package commands
 import (
 	"bufio"
 	"fmt"
-	"github.com/ieedan/sl/database"
-	"github.com/ieedan/sl/game"
-	"github.com/ieedan/sl/util"
 	"log"
 	"os"
 	"strings"
+
+	"github.com/ieedan/sl/internal/database"
+	"github.com/ieedan/sl/internal/game"
+	"github.com/ieedan/sl/internal/util"
 )
 
 func (n *NewCmd) Run() error {
