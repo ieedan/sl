@@ -8,11 +8,12 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/ieedan/sl/internal/args"
 	"github.com/ieedan/sl/internal/database"
+	gc "github.com/ieedan/sl/internal/game/commands"
 	"github.com/ieedan/sl/internal/util"
 
 	tm "github.com/buger/goterm"
-	"github.com/jmoiron/sqlx"
 )
 
 func Play(name string) {
@@ -21,11 +22,18 @@ func Play(name string) {
 
 	reader := bufio.NewReader(os.Stdin)
 
+	// we clear initially for when we come from a new game
+	tm.Flush()
+	tm.Clear()
+	tm.MoveCursor(1, 1)
+
 	for {
+		// clear screen
 		tm.Flush()
 		tm.Clear()
 		tm.MoveCursor(1, 1)
 
+		// get game
 		game, exists := database.GetGame(db, name)
 
 		if !exists {
@@ -33,89 +41,11 @@ func Play(name string) {
 			return
 		}
 
+		// display game
 		fmt.Println(game.String())
 
-		if !game.IsDead() {
-			fmt.Println("Waiting for command (catch, kill, end, quit, help)...")
-
-			input, err := reader.ReadString('\n')
-
-			if util.IsCancel(err) {
-				fmt.Println("Canceled.")
-				os.Exit(0)
-			}
-
-			input = strings.TrimSpace(input)
-
-			if input == "" {
-				continue
-			}
-
-			endCommandIndex := strings.Index(input, " ")
-
-			var command string
-			args := ""
-
-			if endCommandIndex == -1 {
-				command = input
-			} else {
-				command = input[0:endCommandIndex]
-				args = input[endCommandIndex+1:]
-			}
-
-			if command == "quit" {
-				break
-			}
-
-			switch command {
-			case "kill":
-				var routeName string
-
-				if args != "" {
-					routeName = args
-				}
-
-				kill(game, &routeName)
-			case "catch":
-				catch(game)
-			case "end":
-				end(game)
-			case "help":
-				fmt.Println("")
-
-				if args == "" {
-					help := Help(&Commands)
-
-					fmt.Println(help)
-				} else {
-					cmd := args
-
-					index := slices.IndexFunc(Commands, func(command Cmd) bool {
-						return command.Name == cmd
-					})
-
-					if index != -1 {
-						help := Commands[index].Help()
-
-						fmt.Println(help)
-					} else {
-						fmt.Printf("'%v' is not a valid command!\n", cmd)
-					}
-				}
-
-				fmt.Println("Press `enter` to continue...")
-
-				buf := make([]byte, 1)
-				_, err := reader.Read(buf)
-
-				if util.IsCancel(err) {
-					fmt.Println("Canceled.")
-					os.Exit(0)
-				}
-			default:
-				fmt.Println("Invalid command! Please enter a valid command (catch, kill, end, quit, help)")
-			}
-		} else {
+		// run end loop when game is dead
+		if game.IsDead() {
 			fmt.Println("Game over... Type `delete` to remove this game.")
 
 			command, err := reader.ReadString('\n')
@@ -131,16 +61,82 @@ func Play(name string) {
 				delete(game)
 				break
 			}
+
+			continue
+		}
+
+		commandList := strings.Join(util.Map(&gc.Commands, func(cmd gc.Cmd, i int) string {
+			return cmd.Name
+		}), ", ")
+
+		fmt.Printf("Waiting for command (%v)...\n", commandList)
+
+		input, err := reader.ReadString('\n')
+
+		if util.IsCancel(err) {
+			fmt.Println("Canceled.")
+			os.Exit(0)
+		}
+
+		input = strings.TrimSpace(input)
+
+		arguments := args.Parse(input)
+
+		if len(arguments) == 0 {
+			continue
+		}
+
+		command := arguments[0]
+
+		if command == "quit" {
+			break
+		}
+
+		switch command {
+		case "help":
+			// pad the top of the help display
+			fmt.Println("")
+
+			if len(arguments) == 1 {
+				help := gc.Help(&gc.Commands)
+
+				fmt.Println(help)
+			} else {
+				cmd := strings.Join(arguments[1:], "")
+
+				index := slices.IndexFunc(gc.Commands, func(command gc.Cmd) bool {
+					return command.Name == cmd
+				})
+
+				if index != -1 {
+					help := gc.Commands[index].Help()
+
+					fmt.Println(help)
+				} else {
+					fmt.Printf("'%v' is not a valid command!\n", cmd)
+				}
+			}
+
+			fmt.Println("Press `enter` to continue...")
+
+			buf := make([]byte, 1)
+			_, err := reader.Read(buf)
+
+			if util.IsCancel(err) {
+				fmt.Println("Canceled.")
+				os.Exit(0)
+			}
+		default:
+			for _, cmd := range gc.Commands {
+				if cmd.Name == command {
+					cmd.Run(arguments, game)
+					continue
+				}
+			}
+
+			fmt.Println("Invalid command! Please enter a valid command (catch, kill, end, quit, help)")
 		}
 	}
-}
-
-func end(game *database.Game) {
-	ids := util.Map(&game.Routes, func(route database.Route, i int) int64 {
-		return route.Id
-	})
-
-	killRoutes(ids...)
 }
 
 func delete(game *database.Game) {
@@ -153,133 +149,4 @@ func delete(game *database.Game) {
 	}
 
 	fmt.Printf("Deleted '%v'!\n", game.Name)
-}
-
-func kill(game *database.Game, nameOfRoute *string) {
-	var route string
-
-	if nameOfRoute != nil && *nameOfRoute != "" {
-		route = *nameOfRoute
-	}
-
-	if route == "" {
-		reader := bufio.NewReader(os.Stdin)
-
-		fmt.Println("Please enter a route to kill:")
-
-		r, err := reader.ReadString('\n')
-
-		if util.IsCancel(err) {
-			fmt.Println("Canceled.")
-			os.Exit(0)
-		}
-
-		trimmed := strings.TrimSpace(r)
-
-		route = trimmed
-	}
-
-	id, ok := game.GetRoute(route)
-
-	if !ok {
-		fmt.Printf("The route '%v' does not exist\n", route)
-		return
-	}
-
-	killRoutes(id)
-}
-
-func killRoutes(routeIds ...int64) {
-	db := database.Connect()
-	defer db.Close()
-
-	query, args, err := sqlx.In("UPDATE Routes SET PokemonAreAlive = 0 WHERE Id IN (?)", routeIds)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	query = db.Rebind(query)
-
-	_, err = db.Exec(query, args...)
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
-func catch(game *database.Game) {
-	reader := bufio.NewReader(os.Stdin)
-
-	var routeName string
-
-	for {
-		fmt.Println("Enter the name of the route:")
-
-		res, err := reader.ReadString('\n')
-
-		if util.IsCancel(err) {
-			fmt.Println("Canceled.")
-			os.Exit(0)
-		}
-
-		routeName = strings.TrimSpace(res)
-
-		if routeName == "" {
-			fmt.Println("You must enter the route name!")
-			continue
-		}
-
-		break
-	}
-
-	pokemon := make(map[int64]string)
-
-	for i, trainer := range game.Trainers {
-		fmt.Printf("Enter %v's new pokemon:\n", trainer.Name)
-
-		pokemonName, err := reader.ReadString('\n')
-
-		if util.IsCancel(err) {
-			fmt.Println("Canceled.")
-			os.Exit(0)
-		}
-
-		pokemonName = strings.TrimSpace(pokemonName)
-
-		if pokemonName == "" {
-			fmt.Println("You must enter a Pokemon!")
-			i--
-			continue
-		}
-
-		pokemon[trainer.Id] = pokemonName
-	}
-
-	db := database.Connect()
-	defer db.Close()
-
-	result, err := db.Exec(
-		"INSERT INTO Routes (GameId, Name) VALUES (?, ?)",
-		game.Id,
-		routeName,
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	routeId, err := result.LastInsertId()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	for trainerId, pokemonName := range pokemon {
-		_, err = db.Exec(
-			"INSERT INTO Pokemon (RouteId, TrainerId, Name) VALUES (?, ?, ?)",
-			routeId,
-			trainerId,
-			pokemonName,
-		)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
 }
