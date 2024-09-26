@@ -2,9 +2,11 @@ package game
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/ieedan/sl/internal/database"
 	"github.com/ieedan/sl/internal/util"
+	"github.com/jmoiron/sqlx"
 )
 
 type Cmd struct {
@@ -71,12 +73,29 @@ func Help(commands *[]Cmd) string {
 	return help
 }
 
+func KillRoutes(routeIds ...int64) {
+	db := database.Connect()
+	defer db.Close()
+
+	query, args, err := sqlx.In("UPDATE Routes SET PokemonAreAlive = 0 WHERE Id IN (?)", routeIds)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	query = db.Rebind(query)
+
+	_, err = db.Exec(query, args...)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
 var Commands = []Cmd{
 	Catch,
-	{Name: "kill", Description: "Kill all Pokemon in a route", Args: []Arg{
-		{Name: "route", Description: "Name of the route to kill (case insensitive)", Optional: true},
-	}},
-	{Name: "end", Description: "Ends the game (whiteout / blackout)"},
+	Kill,
+	End,
+
+	// quit and help are special commands that don't run their own function
 	{Name: "quit", Description: "Quit from the terminal (ctrl + c)"},
 	{Name: "help", Description: "Displays help", Args: []Arg{
 		{Name: "command", Description: "Name of a command to display help for", Optional: true},

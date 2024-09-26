@@ -3,13 +3,11 @@ package game
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 
 	"github.com/ieedan/sl/internal/database"
 	"github.com/ieedan/sl/internal/util"
-	"github.com/jmoiron/sqlx"
 )
 
 var Kill = Cmd{Name: "kill", Description: "Kill all Pokemon in a route", Args: []Arg{
@@ -19,11 +17,11 @@ var Kill = Cmd{Name: "kill", Description: "Kill all Pokemon in a route", Args: [
 func kill(args []string, game *database.Game) {
 	var route string
 
-	if nameOfRoute != nil && *nameOfRoute != "" {
-		route = *nameOfRoute
+	if len(args) > 1 {
+		route = strings.Join(args[1:], " ")
 	}
 
-	if route == "" {
+	for route == "" {
 		reader := bufio.NewReader(os.Stdin)
 
 		fmt.Println("Please enter a route to kill:")
@@ -37,6 +35,10 @@ func kill(args []string, game *database.Game) {
 
 		trimmed := strings.TrimSpace(r)
 
+		if route == "" {
+
+		}
+
 		route = trimmed
 	}
 
@@ -47,22 +49,5 @@ func kill(args []string, game *database.Game) {
 		return
 	}
 
-	killRoutes(id)
-}
-
-func killRoutes(routeIds ...int64) {
-	db := database.Connect()
-	defer db.Close()
-
-	query, args, err := sqlx.In("UPDATE Routes SET PokemonAreAlive = 0 WHERE Id IN (?)", routeIds)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	query = db.Rebind(query)
-
-	_, err = db.Exec(query, args...)
-	if err != nil {
-		log.Fatal(err)
-	}
+	KillRoutes(id)
 }

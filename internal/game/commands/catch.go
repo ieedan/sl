@@ -14,11 +14,15 @@ import (
 var Catch = Cmd{Name: "catch", Description: "Walks you through catching a new Pokemon", Run: catch}
 
 func catch(args []string, game *database.Game) {
-	reader := bufio.NewReader(os.Stdin)
-
 	var routeName string
 
-	for {
+	if len(args) > 1 {
+		routeName = strings.Join(args[1:], " ")
+	}
+
+	reader := bufio.NewReader(os.Stdin)
+
+	for routeName == "" {
 		fmt.Println("Enter the name of the route:")
 
 		res, err := reader.ReadString('\n')
